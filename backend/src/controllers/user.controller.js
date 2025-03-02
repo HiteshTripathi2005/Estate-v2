@@ -102,7 +102,12 @@ export const userRegister = async (req, res) => {
 
 export const userLogout = async (req, res) => {
   req.user = null;
-  res.clearCookie("JWT", { httpOnly: true, secure: true, sameSite: "none" });
+  res.clearCookie("JWT", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+  });
   res.json({ message: "user logout" });
 };
 

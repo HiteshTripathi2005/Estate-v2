@@ -108,7 +108,7 @@ export const userLogout = async (req, res) => {
     sameSite: "none",
     path: "/",
     maxAge: 0, // Force immediate expiration
-    expires: new Date(0),
+    domain: process.env.CLIENT_URL,
   });
   res.json({ message: "user logout" });
 };

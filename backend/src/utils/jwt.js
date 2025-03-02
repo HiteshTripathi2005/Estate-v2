@@ -10,6 +10,7 @@ const generateToken = (id, res) => {
     sameSite: "none",
     path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000,
+    domain: process.env.CLIENT_URL,
   });
 };
 

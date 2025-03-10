@@ -1,3 +1,4 @@
+import adminModel from "../models/admin.model.js";
 import uploadImage from "../utils/cloudinary.js";
 import generateToken from "../utils/jwt.js";
 import { User } from "./../models/users.model.js";
@@ -107,8 +108,7 @@ export const userLogout = async (req, res) => {
     secure: true,
     sameSite: "none",
     path: "/",
-    maxAge: 0, // Force immediate expiration
-    domain: process.env.CLIENT_URL,
+    maxAge: 0,
   });
   res.json({ message: "user logout" });
 };
@@ -221,4 +221,73 @@ export const googleLogin = async (req, res) => {
     console.error("Error in googleLogin: ", error);
     res.status(500).json({ message: "Internal server error" });
   }
+};
+
+export const adminLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const user = await adminModel.findOne({
+      email,
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    const passMatch = await user.matchPassword(password);
+
+    if (!passMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    generateToken(user._id, res);
+
+    res.status(200).json({ message: "Login successful", data: user });
+  } catch (error) {
+    console.error("Error in adminLogin: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const adminRegister = async (req, res) => {
+  try {
+    const { userName, email, password } = req.body;
+
+    const userExists = await adminModel.findOne({ email });
+
+    if (userExists) {
+      return res
+        .status(400)
+        .json({ message: "User already exists with this email" });
+    }
+
+    const user = await adminModel.create({
+      userName,
+      email,
+      password,
+    });
+
+    generateToken(user._id, res);
+
+    res
+      .status(200)
+      .json({ message: "User registered successfully", data: user });
+  } catch (error) {
+    console.error("Error in adminRegister: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const adminGet = async (req, res) => {
+  const user = req.user;
+
+  res.status(200).json({
+    message: "Admin fetched successfully",
+    data: user,
+  });
 };

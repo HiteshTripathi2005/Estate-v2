@@ -69,7 +69,7 @@ const UploadedProperty = () => {
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
-      className="flex-1 bg-white p-4 sm:p-6 rounded-lg shadow-md hover:shadow-lg transition-all"
+      className="flex-1 bg-white p-4 sm:p-6 rounded-lg  shadow-md hover:shadow-lg transition-all"
     >
       <div className="flex justify-between items-center mb-4 sm:mb-6">
         <h2 className="text-xl sm:text-2xl font-semibold ">Your Listings</h2>
@@ -90,7 +90,7 @@ const UploadedProperty = () => {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 max-h-[70vh] overflow-y-auto pr-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 max-h-[50vh] overflow-y-auto pr-2">
         <AnimatePresence>
           {userProperties.map((listing, index) => (
             <motion.div

@@ -6,43 +6,189 @@ import GoogleLoginButton from "../components/common/GoogleLoginButton";
 
 export default function Register() {
   const { savingUser, register } = useAuthStore();
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState({
+    userName: "",
+    fullName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [errors, setErrors] = useState({
+    userName: "",
+    fullName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    profilePic: "",
+  });
+  const [touched, setTouched] = useState({
+    userName: false,
+    fullName: false,
+    email: false,
+    password: false,
+    confirmPassword: false,
+  });
   const [profilePic, setProfilePic] = useState(null);
   const [url, setUrl] = useState(null);
 
   const sendData = new FormData();
 
+  const validateField = (name, value) => {
+    let error = "";
+    switch (name) {
+      case "userName":
+        if (!value.trim()) {
+          error = "Username is required";
+        } else if (value.length < 3) {
+          error = "Username must be at least 3 characters";
+        }
+        break;
+      case "fullName":
+        if (!value.trim()) {
+          error = "Full name is required";
+        } else if (value.length < 2) {
+          error = "Please enter your full name";
+        }
+        break;
+      case "email":
+        if (!value.trim()) {
+          error = "Email is required";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          error = "Please enter a valid email address";
+        }
+        break;
+      case "password":
+        if (!value.trim()) {
+          error = "Password is required";
+        } else if (value.length < 6) {
+          error = "Password must be at least 6 characters";
+        }
+        break;
+      case "confirmPassword":
+        if (!value.trim()) {
+          error = "Please confirm your password";
+        } else if (value !== formData.password) {
+          error = "Passwords do not match";
+        }
+        break;
+      default:
+        break;
+    }
+    return error;
+  };
+
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.id]: e.target.value });
+    const { id, value } = e.target;
+    setFormData({ ...formData, [id]: value });
+
+    // Validate field on change if it's been touched
+    if (touched[id]) {
+      setErrors({
+        ...errors,
+        [id]: validateField(id, value),
+      });
+    }
+
+    // Special handling for confirmPassword to revalidate when password changes
+    if (id === "password" && touched.confirmPassword) {
+      setErrors({
+        ...errors,
+        confirmPassword: formData.confirmPassword
+          ? value === formData.confirmPassword
+            ? ""
+            : "Passwords do not match"
+          : "Please confirm your password",
+      });
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { id, value } = e.target;
+    setTouched({
+      ...touched,
+      [id]: true,
+    });
+    setErrors({
+      ...errors,
+      [id]: validateField(id, value),
+    });
   };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-    setProfilePic(file);
-    const url = URL.createObjectURL(file);
-    setUrl(url);
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        // 5MB limit
+        setErrors({
+          ...errors,
+          profilePic: "Image size exceeds 5MB limit",
+        });
+        return;
+      }
+
+      setErrors({
+        ...errors,
+        profilePic: "",
+      });
+      setProfilePic(file);
+      const url = URL.createObjectURL(file);
+      setUrl(url);
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {
+      userName: validateField("userName", formData.userName),
+      fullName: validateField("fullName", formData.fullName),
+      email: validateField("email", formData.email),
+      password: validateField("password", formData.password),
+      confirmPassword: validateField(
+        "confirmPassword",
+        formData.confirmPassword
+      ),
+    };
+
+    setErrors({
+      ...errors,
+      ...newErrors,
+    });
+
+    // Mark all fields as touched
+    setTouched({
+      userName: true,
+      fullName: true,
+      email: true,
+      password: true,
+      confirmPassword: true,
+    });
+
+    // Return true if no errors
+    return !Object.values(newErrors).some((error) => error);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (
-      formData.userName &&
-      formData.fullName &&
-      formData.email &&
-      formData.password &&
-      formData.confirmPassword
-    ) {
-      sendData.append("userName", formData.userName);
-      sendData.append("fullName", formData.fullName);
-      sendData.append("email", formData.email);
-      sendData.append("password", formData.password);
-      sendData.append("confirmPassword", formData.confirmPassword);
-    }
 
-    if (profilePic) {
-      sendData.append("profilePic", profilePic);
+    if (validateForm()) {
+      if (
+        formData.userName &&
+        formData.fullName &&
+        formData.email &&
+        formData.password &&
+        formData.confirmPassword
+      ) {
+        sendData.append("userName", formData.userName);
+        sendData.append("fullName", formData.fullName);
+        sendData.append("email", formData.email);
+        sendData.append("password", formData.password);
+        sendData.append("confirmPassword", formData.confirmPassword);
+      }
+
+      if (profilePic) {
+        sendData.append("profilePic", profilePic);
+      }
+      register(sendData);
     }
-    register(sendData);
   };
 
   return (
@@ -85,6 +231,9 @@ export default function Register() {
                 Choose profile picture
               </span>
             </label>
+            {errors.profilePic && (
+              <p className="text-sm text-red-500">{errors.profilePic}</p>
+            )}
           </div>
 
           <div className="space-y-5">
@@ -98,10 +247,19 @@ export default function Register() {
               <input
                 type="text"
                 id="userName"
+                value={formData.userName}
                 onChange={handleChange}
-                className="block w-full px-4 py-3.5 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all"
+                onBlur={handleBlur}
+                className={`block w-full px-4 py-3.5 border ${
+                  errors.userName && touched.userName
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all`}
                 placeholder="Enter your username"
               />
+              {errors.userName && touched.userName && (
+                <p className="mt-1 text-sm text-red-500">{errors.userName}</p>
+              )}
             </div>
 
             <div>
@@ -114,10 +272,19 @@ export default function Register() {
               <input
                 type="text"
                 id="fullName"
+                value={formData.fullName}
                 onChange={handleChange}
-                className="block w-full px-4 py-3.5 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all"
+                onBlur={handleBlur}
+                className={`block w-full px-4 py-3.5 border ${
+                  errors.fullName && touched.fullName
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all`}
                 placeholder="Enter your full name"
               />
+              {errors.fullName && touched.fullName && (
+                <p className="mt-1 text-sm text-red-500">{errors.fullName}</p>
+              )}
             </div>
 
             <div>
@@ -130,10 +297,19 @@ export default function Register() {
               <input
                 type="email"
                 id="email"
+                value={formData.email}
                 onChange={handleChange}
-                className="block w-full px-4 py-3.5 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all"
+                onBlur={handleBlur}
+                className={`block w-full px-4 py-3.5 border ${
+                  errors.email && touched.email
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all`}
                 placeholder="name@example.com"
               />
+              {errors.email && touched.email && (
+                <p className="mt-1 text-sm text-red-500">{errors.email}</p>
+              )}
             </div>
 
             <div>
@@ -146,10 +322,19 @@ export default function Register() {
               <input
                 type="password"
                 id="password"
+                value={formData.password}
                 onChange={handleChange}
-                className="block w-full px-4 py-3.5 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all"
+                onBlur={handleBlur}
+                className={`block w-full px-4 py-3.5 border ${
+                  errors.password && touched.password
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all`}
                 placeholder="Create a password"
               />
+              {errors.password && touched.password && (
+                <p className="mt-1 text-sm text-red-500">{errors.password}</p>
+              )}
             </div>
 
             <div>
@@ -162,10 +347,21 @@ export default function Register() {
               <input
                 type="password"
                 id="confirmPassword"
+                value={formData.confirmPassword}
                 onChange={handleChange}
-                className="block w-full px-4 py-3.5 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all"
+                onBlur={handleBlur}
+                className={`block w-full px-4 py-3.5 border ${
+                  errors.confirmPassword && touched.confirmPassword
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all`}
                 placeholder="Confirm your password"
               />
+              {errors.confirmPassword && touched.confirmPassword && (
+                <p className="mt-1 text-sm text-red-500">
+                  {errors.confirmPassword}
+                </p>
+              )}
             </div>
           </div>
 

@@ -20,17 +20,34 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: function () {
-        return !this.googleId; // Password is required only if googleId is not present
+        return !this.googleId;
       },
     },
     googleId: {
       type: String,
       unique: true,
-      sparse: true, // This allows the field to be unique only when it exists
+      sparse: true,
     },
     profilePic: {
       type: String,
       default: "",
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    lastLogin: {
+      type: Date,
+      default: null,
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    role: {
+      type: String,
+      enum: ["user", "premium"],
+      default: "user",
     },
     watchlist: [
       {

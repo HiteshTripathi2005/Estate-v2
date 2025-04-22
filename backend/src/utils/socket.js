@@ -2,6 +2,7 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import dotenv from "dotenv";
+import { User } from "../models/users.model.js";
 dotenv.config();
 
 const app = express();
@@ -25,11 +26,28 @@ io.on("connection", (socket) => {
 
   if (userId) {
     userSocketMap[userId] = socket.id;
+
+    // Mark user as active when they connect
+    User.findByIdAndUpdate(userId, {
+      isActive: true,
+      lastLogin: new Date(),
+    }).catch((error) => {
+      console.error("Error updating user active status:", error);
+    });
   }
 
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", async () => {
+    // Mark user as inactive when they disconnect
+    if (userId) {
+      try {
+        await User.findByIdAndUpdate(userId, { isActive: false });
+      } catch (error) {
+        console.error("Error updating user inactive status:", error);
+      }
+    }
+
     delete userSocketMap[userId];
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });

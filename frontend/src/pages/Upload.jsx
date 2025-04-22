@@ -6,7 +6,9 @@ const Upload = () => {
   return (
     <div>
       <AuthNavbar />
-      <MainUpload />
+      <div className="mt-32">
+        <MainUpload />
+      </div>
     </div>
   );
 };

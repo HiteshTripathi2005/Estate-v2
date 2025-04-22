@@ -5,6 +5,7 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 import usePropertyStore from "./../../store/property.store";
+import instance from "../../utils/axios";
 import { useEffect, useState } from "react";
 import { IoMdArrowRoundBack } from "react-icons/io";
 import Location from "./Location";
@@ -21,19 +22,12 @@ import { PDFDownloadButton } from "../profile/PropertyPDF";
 
 const InfoMain = () => {
   const { user } = useAuthStore();
-  const {
-    getPropertyInfo,
-    info,
-    infoLoading,
-    addWatchList,
-    removeWatchList,
-    purchaseProperty,
-  } = usePropertyStore();
+  const { getPropertyInfo, info, infoLoading, addWatchList, removeWatchList } =
+    usePropertyStore();
   const { addFriends } = useMessageStore();
   const { id } = useParams();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [isInWatchlist, setIsInWatchlist] = useState(false);
-  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showPdfOptions, setShowPdfOptions] = useState(false);
   const navigate = useNavigate();
 
@@ -48,59 +42,61 @@ const InfoMain = () => {
       removeWatchList(id);
     } else {
       addWatchList(id);
+
+      // Track activity for adding to watchlist
+      if (user) {
+        try {
+          instance.post("/activity/log", {
+            userId: user._id,
+            action: "add_to_watchlist",
+            propertyId: id,
+            details: { propertyTitle: info.title },
+          });
+        } catch (error) {
+          console.error("Error tracking watchlist activity:", error);
+        }
+      }
     }
   };
 
+  // Simplified purchase function - just adds user as friend and redirects to message page
   const handlePurchaseClick = (e) => {
     e.preventDefault();
-    setShowPurchaseModal(true);
-  };
 
-  const handleConfirmPurchase = async () => {
-    try {
-      // Check if the user is the owner of the property
-      if (user && user._id === info.owner._id) {
-        setShowPurchaseModal(false);
-        toast.error("You cannot purchase your own property");
-        return;
-      }
-
-      await purchaseProperty(id);
-      // Close the modal
-      setShowPurchaseModal(false);
-      // Add the owner as a friend and navigate to chat
-      addFriends(info.owner._id, (path) => {
-        // This callback will be called after navigation
-        // Set a timeout to allow the chat page to load
-        setTimeout(() => {
-          // Find the message input and set its value
-          const messageInput = document.querySelector(
-            'input[placeholder="Type your message..."]'
-          );
-          if (messageInput) {
-            const purchaseMessage = `Hello, I'm interested in purchasing your property "${
-              info.title
-            }" (₹${info.price.toLocaleString()}). Can we discuss the details?`;
-
-            // Set the input value
-            messageInput.value = purchaseMessage;
-
-            // Dispatch an input event to trigger any listeners
-            const event = new Event("input", { bubbles: true });
-            messageInput.dispatchEvent(event);
-
-            // Focus the input
-            messageInput.focus();
-          }
-        }, 1000);
-
-        navigate(path);
-      });
-    } catch (error) {
-      console.error("Error purchasing property:", error);
-      setShowPurchaseModal(false);
-      toast.error("Failed to process purchase request");
+    // Check if the user is the owner of the property
+    if (user && info.owner && user._id === info.owner._id) {
+      toast.error("You cannot purchase your own property");
+      return;
     }
+
+    // Add the owner as a friend and navigate to chat
+    addFriends(info.owner._id, (path) => {
+      // This callback will be called after navigation
+      // Set a timeout to allow the chat page to load
+      setTimeout(() => {
+        // Find the message input and set its value
+        const messageInput = document.querySelector(
+          'input[placeholder="Type your message..."]'
+        );
+        if (messageInput) {
+          const purchaseMessage = `Hello, I'm interested in purchasing your property "${
+            info.title
+          }" (₹${info.price.toLocaleString()}). Can we discuss the details?`;
+
+          // Set the input value
+          messageInput.value = purchaseMessage;
+
+          // Dispatch an input event to trigger any listeners
+          const event = new Event("input", { bubbles: true });
+          messageInput.dispatchEvent(event);
+
+          // Focus the input
+          messageInput.focus();
+        }
+      }, 1000);
+
+      navigate(path);
+    });
   };
 
   const handlePdfClick = () => {
@@ -366,66 +362,6 @@ const InfoMain = () => {
 
         <Location info={info} />
       </motion.div>
-
-      {/* Purchase Confirmation Modal */}
-      <AnimatePresence>
-        {showPurchaseModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-lg shadow-xl p-4 sm:p-6 max-w-md w-full mx-3"
-            >
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">
-                Confirm Purchase
-              </h2>
-              <p className="text-gray-600 mb-6 text-sm sm:text-base">
-                Are you interested in purchasing this property? Clicking confirm
-                will connect you with the property owner to discuss the details.
-              </p>
-              <div className="flex flex-col space-y-4">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-gray-800">{info.title}</h3>
-                  <p className="text-blue-600 font-bold">
-                    ₹{info?.price?.toLocaleString()}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {info.location?.city}, {info.location?.state}
-                  </p>
-                  {info.owner && (
-                    <div className="mt-2 pt-2 border-t border-gray-200">
-                      <p className="text-sm text-gray-500 flex items-center gap-1">
-                        <MdPerson className="text-blue-500" />
-                        Owner: {info.owner.fullName}
-                      </p>
-                    </div>
-                  )}
-                </div>
-                <div className="flex justify-end space-x-4">
-                  <button
-                    onClick={() => setShowPurchaseModal(false)}
-                    className="px-3 sm:px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors flex items-center text-sm sm:text-base"
-                  >
-                    <FaTimes className="mr-2" /> Cancel
-                  </button>
-                  <button
-                    onClick={handleConfirmPurchase}
-                    className="px-3 sm:px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center text-sm sm:text-base"
-                  >
-                    <FaCheck className="mr-2" /> Confirm
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* PDF Options Modal */}
       <AnimatePresence>

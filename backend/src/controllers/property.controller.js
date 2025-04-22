@@ -175,6 +175,8 @@ export const updateProperty = async (req, res) => {
             city: location.city || property.location.city,
             state: location.state || property.location.state,
             zipCode: location.zipCode || property.location.zipCode,
+            latitude: location.latitude || property.location.latitude,
+            longitude: location.longitude || property.location.longitude,
           };
         }
       } catch (error) {
@@ -385,6 +387,223 @@ export const demo = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating property: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getPropertiesByUserId = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    const properties = await Property.find({ owner: userId })
+      .select(
+        "title description price location status images createdAt updatedAt"
+      )
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: "User properties fetched successfully",
+      data: properties,
+    });
+  } catch (error) {
+    console.error("Error fetching user properties:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getAllPropertiesForAdmin = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = "createdAt",
+      order = "desc",
+      status,
+      category,
+      minPrice,
+      maxPrice,
+    } = req.query;
+
+    // Build query filter
+    const filter = {};
+
+    if (status) filter.status = status;
+    if (category) filter.propertyType = category;
+    if (minPrice) filter.price = { $gte: Number(minPrice) };
+    if (maxPrice) {
+      if (filter.price) {
+        filter.price.$lte = Number(maxPrice);
+      } else {
+        filter.price = { $lte: Number(maxPrice) };
+      }
+    }
+
+    // Calculate pagination
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Prepare sort options
+    const sortOptions = {};
+    sortOptions[sortBy] = order === "asc" ? 1 : -1;
+
+    // Execute query with pagination and sorting
+    const properties = await Property.find(filter)
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(Number(limit))
+      .populate({
+        path: "owner",
+        select: "fullName email profilePic",
+      });
+
+    // Get total count for pagination
+    const totalProperties = await Property.countDocuments(filter);
+    const totalPages = Math.ceil(totalProperties / Number(limit));
+
+    res.status(200).json({
+      message: "Properties fetched successfully",
+      data: properties,
+      totalProperties,
+      totalPages,
+      currentPage: Number(page),
+    });
+  } catch (error) {
+    console.error("Error fetching properties for admin:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const adminUpdateProperty = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find the property
+    const property = await Property.findById(id);
+
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    const {
+      title,
+      description,
+      price,
+      category,
+      status,
+      city,
+      state,
+      isVerified,
+    } = req.body;
+
+    // Create an update object with the fields that are provided
+    const updateData = {};
+
+    if (title) updateData.title = title;
+    if (description) updateData.description = description;
+    if (price) updateData.price = Number(price);
+    if (category) updateData.propertyType = category;
+    if (status) updateData.status = status;
+    if (isVerified !== undefined) updateData.isVerified = isVerified === "true";
+
+    // Update location if city or state is provided
+    if (city || state) {
+      updateData.location = { ...property.location };
+      if (city) updateData.location.city = city;
+      if (state) updateData.location.state = state;
+    }
+
+    // Update the property with all the changes at once
+    const updatedProperty = await Property.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true }
+    );
+
+    res.status(200).json({
+      message: "Property updated successfully",
+      data: updatedProperty,
+    });
+  } catch (error) {
+    console.error("Error updating property by admin:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const adminVerifyProperty = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const property = await Property.findById(id);
+
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    const updatedProperty = await Property.findByIdAndUpdate(
+      id,
+      { isVerified: true },
+      { new: true }
+    );
+
+    res.status(200).json({
+      message: "Property verified successfully",
+      data: updatedProperty,
+    });
+  } catch (error) {
+    console.error("Error verifying property:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const adminDeleteProperty = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const property = await Property.findById(id);
+
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    await Property.findByIdAndDelete(id);
+
+    res.status(200).json({
+      message: "Property deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting property by admin:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const adminTogglePropertyStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const property = await Property.findById(id);
+
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    // Toggle the isActive status
+    const updatedProperty = await Property.findByIdAndUpdate(
+      id,
+      { isActive: !property.isActive },
+      { new: true }
+    );
+
+    res.status(200).json({
+      message: `Property ${
+        updatedProperty.isActive ? "activated" : "deactivated"
+      } successfully`,
+      data: updatedProperty,
+    });
+  } catch (error) {
+    console.error("Error toggling property status:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import instance from "../utils/axios";
 import toast from "react-hot-toast";
+import { useAuthStore } from "./auth.store";
 
 const usePropertyStore = create((set) => ({
   loading: false,
@@ -81,6 +82,21 @@ const usePropertyStore = create((set) => ({
       const res = await instance.get(`/property/info/${id}`);
       set({ info: res.data.data });
       set({ infoLoading: false });
+
+      // Track property view activity
+      const user = useAuthStore.getState().user;
+      if (user) {
+        try {
+          await instance.post("/activity/log", {
+            userId: user._id,
+            action: "view_property",
+            propertyId: id,
+            details: { propertyTitle: res.data.data.title },
+          });
+        } catch (error) {
+          console.error("Error tracking property view activity:", error);
+        }
+      }
     } catch (error) {
       set({ infoLoading: false });
       console.error("Error getting property info:", error);
@@ -91,6 +107,15 @@ const usePropertyStore = create((set) => ({
   purchaseProperty: async (id) => {
     try {
       const res = await instance.post(`/property/purchase/${id}`);
+
+      // Log the purchase activity
+      await instance.post("/activity/log", {
+        userId: useAuthStore.getState().user?._id,
+        action: "purchase_property",
+        propertyId: id,
+        details: { status: "successful" },
+      });
+
       console.log(res.data);
       toast.success("Property purchased successfully");
     } catch (error) {

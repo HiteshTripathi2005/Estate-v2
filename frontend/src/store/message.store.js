@@ -48,6 +48,24 @@ const useMessageStore = create((set, get) => ({
       set({
         messages: [...get().messages, res.data.data],
       });
+
+      // Track message sent activity
+      try {
+        const user = useAuthStore.getState().user;
+        if (user) {
+          await instance.post("/activity/log", {
+            userId: user._id,
+            action: "send_message",
+            details: {
+              recipient: receiverId,
+              timestamp: new Date().toISOString(),
+              messageType: "text",
+            },
+          });
+        }
+      } catch (error) {
+        console.error("Error tracking message activity:", error);
+      }
     } catch (error) {
       console.error("Error in sendMessage: ", error);
       toast.error(error?.response?.data?.message || "could not send message");
@@ -65,8 +83,10 @@ const useMessageStore = create((set, get) => ({
       const friendsResponse = await instance.get("/message/getfriends");
       const friends = friendsResponse.data.data || [];
 
-      // Find the friend with the matching ID
-      const selectedFriend = friends.find((friend) => friend.friend._id === id);
+      // Find the friend with the matching ID, with null/undefined check
+      const selectedFriend = friends.find(
+        (friend) => friend && friend.friend && friend.friend._id === id
+      );
 
       if (selectedFriend) {
         // Set the selected user in the auth store

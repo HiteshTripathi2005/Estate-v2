@@ -38,8 +38,8 @@ const createCustomIcon = (propertyType) => {
 
 const AllPropertiesMap = () => {
   const { getAllProperties, property, loading } = usePropertyStore();
-  const [mapCenter, setMapCenter] = useState([37.0902, -95.7129]);
-  const [zoom, setZoom] = useState(4);
+  const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]);
+  const [zoom, setZoom] = useState(5);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     propertyType: "",
@@ -336,7 +336,7 @@ const AllPropertiesMap = () => {
                   </div>
                   <Link
                     to={`/properties/${prop._id}`}
-                    className="block text-center bg-blue-600 text-white py-1 px-3 rounded-md hover:bg-blue-700 transition-colors text-sm mt-2"
+                    className="block text-center bg-white hover:text-black py-1 px-3 rounded-md hover:bg-gray-100 transition-colors text-sm mt-2"
                   >
                     View Details
                   </Link>

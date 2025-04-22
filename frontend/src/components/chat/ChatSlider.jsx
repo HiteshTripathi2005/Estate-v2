@@ -15,8 +15,8 @@ const ChatSlider = ({ setShowSlider, setSelectedUser }) => {
 
     return sliderUsers.filter(
       (user) =>
-        user.friend.fullName.toLowerCase().includes(search.toLowerCase()) ||
-        user.friend.email?.toLowerCase().includes(search.toLowerCase())
+        user.friend?.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+        user.friend?.email?.toLowerCase().includes(search.toLowerCase())
     );
   }, [sliderUsers, search]);
 
@@ -104,10 +104,11 @@ const ChatSlider = ({ setShowSlider, setSelectedUser }) => {
                   transition={{ duration: 0.2 }}
                 >
                   {filteredUsers.map((user, index) => {
-                    const isOnline = onlineUsers.includes(user.friend._id);
+                    const isOnline =
+                      user.friend && onlineUsers.includes(user.friend._id);
                     return (
                       <motion.div
-                        key={user.friend._id}
+                        key={user.friend?._id || index}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{
@@ -124,8 +125,11 @@ const ChatSlider = ({ setShowSlider, setSelectedUser }) => {
                       >
                         <div className="relative">
                           <img
-                            src={user.friend.profilePic}
-                            alt={user.friend.fullName}
+                            src={
+                              user.friend?.profilePic ||
+                              "https://via.placeholder.com/50"
+                            }
+                            alt={user.friend?.fullName || "User"}
                             className="w-14 h-14 rounded-full object-cover border-2 border-gray-100"
                           />
                           <span
@@ -136,7 +140,7 @@ const ChatSlider = ({ setShowSlider, setSelectedUser }) => {
                         </div>
                         <div className="ml-4 flex-1">
                           <h3 className="font-semibold text-gray-800">
-                            {user.friend.fullName}
+                            {user.friend?.fullName || "Unknown User"}
                           </h3>
                           <span className="text-sm text-gray-500 flex items-center gap-1">
                             <span

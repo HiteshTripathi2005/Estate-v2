@@ -6,18 +6,94 @@ import GoogleLoginButton from "../components/common/GoogleLoginButton";
 
 export default function Login() {
   const { fetchingUser, login } = useAuthStore();
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+  const [errors, setErrors] = useState({
+    email: "",
+    password: "",
+  });
+  const [touched, setTouched] = useState({
+    email: false,
+    password: false,
+  });
+
+  const validateField = (name, value) => {
+    let error = "";
+    switch (name) {
+      case "email":
+        if (!value.trim()) {
+          error = "Email is required";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          error = "Please enter a valid email address";
+        }
+        break;
+      case "password":
+        if (!value.trim()) {
+          error = "Password is required";
+        } else if (value.length < 6) {
+          error = "Password must be at least 6 characters";
+        }
+        break;
+      default:
+        break;
+    }
+    return error;
+  };
 
   const handleChange = (e) => {
+    const { id, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.id]: e.target.value,
+      [id]: value,
     });
+
+    // Validate field on change if it's been touched
+    if (touched[id]) {
+      setErrors({
+        ...errors,
+        [id]: validateField(id, value),
+      });
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { id, value } = e.target;
+    setTouched({
+      ...touched,
+      [id]: true,
+    });
+    setErrors({
+      ...errors,
+      [id]: validateField(id, value),
+    });
+  };
+
+  const validateForm = () => {
+    const newErrors = {
+      email: validateField("email", formData.email),
+      password: validateField("password", formData.password),
+    };
+
+    setErrors(newErrors);
+
+    // Mark all fields as touched
+    setTouched({
+      email: true,
+      password: true,
+    });
+
+    // Return true if no errors
+    return !Object.values(newErrors).some((error) => error);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    login(formData);
+
+    if (validateForm()) {
+      login(formData);
+    }
   };
 
   return (
@@ -47,10 +123,19 @@ export default function Login() {
               <input
                 type="email"
                 id="email"
+                value={formData.email}
                 onChange={handleChange}
-                className="block w-full px-4 py-3.5 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all"
+                onBlur={handleBlur}
+                className={`block w-full px-4 py-3.5 border ${
+                  errors.email && touched.email
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all`}
                 placeholder="name@example.com"
               />
+              {errors.email && touched.email && (
+                <p className="mt-1 text-sm text-red-500">{errors.email}</p>
+              )}
             </div>
             <div>
               <label
@@ -62,10 +147,19 @@ export default function Login() {
               <input
                 type="password"
                 id="password"
+                value={formData.password}
                 onChange={handleChange}
-                className="block w-full px-4 py-3.5 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all"
+                onBlur={handleBlur}
+                className={`block w-full px-4 py-3.5 border ${
+                  errors.password && touched.password
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } rounded-lg shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all`}
                 placeholder="Enter your password"
               />
+              {errors.password && touched.password && (
+                <p className="mt-1 text-sm text-red-500">{errors.password}</p>
+              )}
             </div>
           </div>
 

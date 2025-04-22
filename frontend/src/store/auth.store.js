@@ -17,6 +17,7 @@ export const useAuthStore = create((set, get) => ({
   onlineUsers: [],
   selectedUser: null,
   googleAuthLoading: false,
+  error: null,
 
   setSelectedUser: (user) => {
     set({ selectedUser: user });
@@ -50,13 +51,31 @@ export const useAuthStore = create((set, get) => ({
 
   login: async (formData) => {
     try {
-      set({ fetchingUser: true });
+      set({ fetchingUser: true, error: null });
       const response = await instance.post("/auth/login", formData);
-      set({ user: response.data.data });
+      set({ user: response.data.data, fetchingUser: false });
       get().connectSocket();
       toast.success(response?.data?.message || "Logged in successfully");
+
+      // Track login activity
+      try {
+        await instance.post("/activity/log", {
+          userId: response.data.data._id,
+          action: "login",
+          details: {
+            method: "credential",
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } catch (error) {
+        console.error("Error tracking login activity:", error);
+      }
     } catch (error) {
       console.error("Error in login: ", error);
+      set({
+        error: error.response?.data?.message || "Login failed",
+        fetchingUser: false,
+      });
       toast.error(error?.response?.data?.message || "Something went wrong");
     } finally {
       set({ fetchingUser: false });

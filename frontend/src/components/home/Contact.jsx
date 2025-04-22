@@ -7,6 +7,7 @@ import {
   FaUser,
 } from "react-icons/fa";
 import { motion } from "framer-motion";
+import axios from "../../utils/axios";
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -14,6 +15,8 @@ const Contact = () => {
     email: "",
     message: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState({ type: "", message: "" });
 
   const social = [
     {
@@ -34,8 +37,48 @@ const Contact = () => {
     },
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.name || !formData.email || !formData.message) {
+      setStatus({
+        type: "error",
+        message: "Please fill in all fields",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setStatus({ type: "", message: "" });
+
+      const response = await axios.post("/contact/send-email", formData);
+
+      if (response.data.success) {
+        setStatus({
+          type: "success",
+          message: "Message sent successfully! We'll get back to you soon.",
+        });
+
+        setFormData({
+          name: "",
+          email: "",
+          message: "",
+        });
+      } else {
+        throw new Error(response.data.message || "Failed to send message");
+      }
+    } catch (error) {
+      setStatus({
+        type: "error",
+        message:
+          error.response?.data?.message ||
+          error.message ||
+          "Something went wrong. Please try again later.",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -49,6 +92,19 @@ const Contact = () => {
       >
         Contact Us
       </motion.h1>
+
+      {status.message && (
+        <div
+          className={`p-4 mb-4 rounded-lg ${
+            status.type === "success"
+              ? "bg-green-100 text-green-700"
+              : "bg-red-100 text-red-700"
+          }`}
+        >
+          {status.message}
+        </div>
+      )}
+
       <motion.form
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -63,6 +119,7 @@ const Contact = () => {
           className="border p-[5px] rounded-lg text-2xl"
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          disabled={loading}
         />
         <input
           type="email"
@@ -70,6 +127,7 @@ const Contact = () => {
           className="border p-[5px] rounded-lg text-2xl"
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          disabled={loading}
         />
         <textarea
           placeholder="Message"
@@ -79,12 +137,16 @@ const Contact = () => {
           onChange={(e) =>
             setFormData({ ...formData, message: e.target.value })
           }
+          disabled={loading}
         />
         <button
-          className="bg-slate-700 text-white p-3 rounded-lg uppercase hover:opacity-95"
+          className={`${
+            loading ? "bg-slate-500" : "bg-slate-700 hover:opacity-95"
+          } text-white p-3 rounded-lg uppercase`}
           type="submit"
+          disabled={loading}
         >
-          Send Message
+          {loading ? "Sending..." : "Send Message"}
         </button>
       </motion.form>
 
@@ -100,15 +162,15 @@ const Contact = () => {
           <div className="space-y-4">
             <p className="flex items-center">
               <span className="font-semibold mr-2">Address:</span>
-              123 Real Estate Ave, City, Country
+              nallasopara mumbai, maharashtra, 401203
             </p>
             <p className="flex items-center">
               <span className="font-semibold mr-2">Phone:</span>
-              +1 234 567 8900
+              +91 9321554212
             </p>
             <p className="flex items-center">
               <span className="font-semibold mr-2">Email:</span>
-              contact@realestate.com
+              skylineestate@gmail.com
             </p>
           </div>
 

@@ -23,6 +23,11 @@ export const userLogin = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    // Update the user's active status and last login time
+    user.isActive = true;
+    user.lastLogin = new Date();
+    await user.save();
+
     generateToken(user._id, res);
 
     res.status(200).json({ message: "Login successful", data: user });
@@ -102,15 +107,24 @@ export const userRegister = async (req, res) => {
 };
 
 export const userLogout = async (req, res) => {
-  req.user = null;
-  res.clearCookie("JWT", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/",
-    maxAge: 0,
-  });
-  res.json({ message: "user logout" });
+  try {
+    if (req.user && req.user._id) {
+      await User.findByIdAndUpdate(req.user._id, { isActive: false });
+    }
+
+    req.user = null;
+    res.clearCookie("JWT", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      path: "/",
+      maxAge: 0,
+    });
+    res.json({ message: "User logged out successfully" });
+  } catch (error) {
+    console.error("Error in userLogout: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
 
 export const userUpdate = async (req, res) => {
@@ -190,6 +204,11 @@ export const googleLogin = async (req, res) => {
         user.googleId = googleId;
         await user.save();
       }
+
+      // Update active status and last login
+      user.isActive = true;
+      user.lastLogin = new Date();
+      await user.save();
     } else {
       // Create a new user with a random username based on their name
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
@@ -202,6 +221,8 @@ export const googleLogin = async (req, res) => {
         email,
         googleId,
         profilePic: profilePic || "",
+        isActive: true,
+        lastLogin: new Date(),
       });
     }
 
@@ -257,6 +278,7 @@ export const adminLogin = async (req, res) => {
 export const adminRegister = async (req, res) => {
   try {
     const { userName, email, password } = req.body;
+    console.log(req.body);
 
     const userExists = await adminModel.findOne({ email });
 
@@ -290,4 +312,208 @@ export const adminGet = async (req, res) => {
     message: "Admin fetched successfully",
     data: user,
   });
+};
+
+// Admin User Management Functions
+export const getAllUsers = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const sortBy = req.query.sortBy || "createdAt";
+    const order = req.query.order === "asc" ? 1 : -1;
+
+    let filter = {};
+
+    // Apply status filters
+    if (req.query.status === "active") {
+      filter.isActive = true;
+    } else if (req.query.status === "inactive") {
+      filter.isActive = false;
+    } else if (req.query.status === "verified") {
+      filter.isVerified = true;
+    } else if (req.query.status === "unverified") {
+      filter.isVerified = false;
+    }
+
+    // Apply role filter
+    if (req.query.role) {
+      filter.role = req.query.role;
+    }
+
+    // Create sort object
+    const sort = {};
+    sort[sortBy] = order;
+
+    const users = await User.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .select("-password");
+
+    const totalUsers = await User.countDocuments(filter);
+    const totalPages = Math.ceil(totalUsers / limit);
+
+    res.status(200).json({
+      message: "Users retrieved successfully",
+      data: users,
+      totalUsers,
+      totalPages,
+      currentPage: page,
+    });
+  } catch (error) {
+    console.error("Error in getAllUsers: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getUserById = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const user = await User.findById(userId).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "User retrieved successfully",
+      data: user,
+    });
+  } catch (error) {
+    console.error("Error in getUserById: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const updateUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const updateData = req.body;
+
+    // Ensure only allowed fields are updated
+    const allowedUpdates = {
+      fullName: updateData.fullName,
+      email: updateData.email,
+      phone: updateData.phone,
+      address: updateData.address,
+      city: updateData.city,
+      state: updateData.state,
+      isActive: updateData.isActive,
+      isVerified: updateData.isVerified,
+    };
+
+    // Remove undefined fields
+    Object.keys(allowedUpdates).forEach(
+      (key) => allowedUpdates[key] === undefined && delete allowedUpdates[key]
+    );
+
+    const updatedUser = await User.findByIdAndUpdate(userId, allowedUpdates, {
+      new: true,
+    }).select("-password");
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "User updated successfully",
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.error("Error in updateUser: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const deleteUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const deletedUser = await User.findByIdAndDelete(userId);
+
+    if (!deletedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error in deleteUser: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const blockUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { isActive: false },
+      { new: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "User blocked successfully",
+      data: user,
+    });
+  } catch (error) {
+    console.error("Error in blockUser: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const unblockUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { isActive: true },
+      { new: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "User unblocked successfully",
+      data: user,
+    });
+  } catch (error) {
+    console.error("Error in unblockUser: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const verifyUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { isVerified: true },
+      { new: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "User verified successfully",
+      data: user,
+    });
+  } catch (error) {
+    console.error("Error in verifyUser: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };

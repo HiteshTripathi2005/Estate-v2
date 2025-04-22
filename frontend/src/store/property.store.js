@@ -52,7 +52,12 @@ const usePropertyStore = create((set) => ({
   updateProperty: async (id, formData) => {
     try {
       set({ updating: true });
-      const res = await instance.post(`/property/update/${id}`, formData);
+      // When sending FormData, don't set Content-Type header, let the browser handle it
+      const res = await instance.post(`/property/update/${id}`, formData, {
+        headers: {
+          // Don't set Content-Type here - axios will set it with the correct boundary when sending FormData
+        },
+      });
       toast.success("Property updated successfully");
       set({ info: res.data.data });
       set({ updating: false });
@@ -60,7 +65,7 @@ const usePropertyStore = create((set) => ({
     } catch (error) {
       console.error("Error updating property:", error);
       set({ updating: false });
-      toast.error(error.response.data.message || "Error updating property");
+      toast.error(error.response?.data?.message || "Error updating property");
       return null;
     }
   },

@@ -151,26 +151,53 @@ const EditPropertyForm = () => {
 
     const propertyData = new FormData();
 
-    // Add all form data
-    Object.keys(formData).forEach((key) => {
-      if (key !== "images") {
-        if (typeof formData[key] === "object") {
-          propertyData.append(key, JSON.stringify(formData[key]));
-        } else {
-          propertyData.append(key, formData[key]);
-        }
-      }
-    });
+    // Add basic form fields
+    propertyData.append("title", formData.title);
+    propertyData.append("description", formData.description);
+    propertyData.append("price", formData.price);
+    propertyData.append("propertyType", formData.propertyType);
+    propertyData.append("status", formData.status);
+    propertyData.append("isActive", formData.isActive);
+
+    // Serialize complex objects as JSON strings (how the backend expects them)
+    const locationData = {
+      address: formData.location.address,
+      city: formData.location.city,
+      state: formData.location.state,
+      zipCode: formData.location.zipCode,
+      latitude: formData.location.latitude,
+      longitude: formData.location.longitude,
+    };
+
+    const featuresData = {
+      bedrooms: formData.features.bedrooms,
+      bathrooms: formData.features.bathrooms,
+      squareFeet: formData.features.squareFeet,
+      parking: formData.features.parking,
+      furnished: formData.features.furnished,
+    };
+
+    // Append serialized objects
+    propertyData.append("location", JSON.stringify(locationData));
+    propertyData.append("features", JSON.stringify(featuresData));
+
+    // Add existing images we want to keep
+    if (existingImages.length > 0) {
+      propertyData.append("existingImages", JSON.stringify(existingImages));
+    }
 
     // Add new images if any
     for (let i = 0; i < images.length; i++) {
       const response = await fetch(images[i]);
       const blob = await response.blob();
-      propertyData.append(`images`, blob);
+      propertyData.append("images", blob);
     }
 
-    // If keeping existing images and there are no new images, don't send images
-    // If not keeping existing images, send new images (handled above)
+    // Log form data for debugging (can be removed in production)
+    console.log("Submitting property update with data:");
+    for (let [key, value] of propertyData.entries()) {
+      console.log(`${key}: ${value instanceof Blob ? "Blob data" : value}`);
+    }
 
     const updatedProperty = await updateProperty(id, propertyData);
     if (updatedProperty) {

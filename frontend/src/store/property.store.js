@@ -55,7 +55,7 @@ const usePropertyStore = create((set) => ({
       // When sending FormData, don't set Content-Type header, let the browser handle it
       const res = await instance.post(`/property/update/${id}`, formData, {
         headers: {
-          // Don't set Content-Type here - axios will set it with the correct boundary when sending FormData
+          // Don't set Content-Type here - axios will set it with the correct boundary
         },
       });
       toast.success("Property updated successfully");

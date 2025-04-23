@@ -1,13 +1,11 @@
 import nodemailer from "nodemailer";
 
-// Create a transporter for sending emails
 const transporter = nodemailer.createTransport({
   host: "sandbox.smtp.mailtrap.io",
   port: 587,
   auth: {
-    // Note: In a production environment, these should be stored as environment variables
-    user: "1d98d78800f151", // Replace with your Gmail account or use env var
-    pass: "73f42facc89c92", // Use App Password if 2FA is enabled
+    user: "1d98d78800f151",
+    pass: "73f42facc89c92",
   },
 });
 
